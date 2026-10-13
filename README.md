@@ -169,6 +169,23 @@ scripts/lab9-up.sh stop
 
 Roteiro do aluno: [Lab 23 — Cadê o Pix?](docs/labs/23-cade-o-pix.md) · Entregável: [Incident Report](docs/labs/aula09-incident-report-template.md) · Gabarito: [guia do professor](docs/labs/aula09-professor-guide.md) (não distribuir).
 
+### Aula 10 — Continuidade e Disaster Recovery (Game Day)
+
+Os investidores querem que a Tech Pix "nunca fique fora do ar". O Game Day mostra o que isso custa: a região principal cai às 18h de uma sexta, a réplica está atrasada e o provider continua liquidando Pix. Cada equipe precisa **decidir, recuperar, reconciliar e validar** sem perder nem duplicar dinheiro, e o laboratório **mede** detecção, recuperação, perda observada, duplicações e invariantes.
+
+Desta vez a infraestrutura é real: PostgreSQL primary + réplica por streaming, Kafka com Outbox e consumidor idempotente, split-brain e fencing de verdade. Só o provider é simulado. Stack própria (`docker-compose.lab10.yml`, portas 8088 e 8090), independente das aulas 7–9; precisa de Docker e Python 3.9+, sem cluster.
+
+```bash
+scripts/lab10.sh up                          # antes da aula: build + ambiente saudavel
+scripts/lab10.sh check                       # 7 invariantes em PASS: o "normal"
+scripts/lab10.sh chaos start                 # o desastre (terminal dedicado)
+scripts/lab10.sh status                      # ... e a equipe assume: promote, fence, route, reconcile, check
+scripts/lab10.sh report --equipe azul        # relatorio com as medicoes
+scripts/lab10.sh reset                       # entre turmas
+```
+
+Roteiro do aluno: [Lab 24 — Game Day](docs/labs/24-game-day.md) · Gabarito: [guia do professor](docs/labs/aula10-professor-guide.md) (não distribuir).
+
 ### Roteiro de apresentação — Aulas 8 e 9
 
 Antes da aula (10 min, sozinho): `python scripts/sobe-tudo.py` (deve terminar 11/11 UP), abas abertas em painel (8099), Grafana (3000), SonarQube (9000), JFrog (8082), Keycloak (8180) e Tekton (9097), e um `scripts/simulate-commit.sh` de aquecimento para o cache Maven (a pipeline cai de ~5 para ~2 min).
@@ -228,6 +245,7 @@ Cada lab segue a mesma estrutura: problema, o que observar, hipóteses, mudança
 | [21 — Pipeline de segurança: Tekton, SAST e DAST](docs/labs/21-secure-pipeline.md) | Aula 8 | — |
 | [22 — Autenticação com Keycloak e tela de login](docs/labs/22-keycloak-login.md) | Aula 8 | — |
 | [23 — Cadê o Pix? Observabilidade e resiliência](docs/labs/23-cade-o-pix.md) | Aula 9 | — |
+| [24 — Game Day: a região principal caiu](docs/labs/24-game-day.md) | Aula 10 | — |
 
 O [mapa dos 26 slides](docs/architecture/slides-map.md) diz o que demonstrar ao vivo em cada um e propõe um roteiro de 2 horas. A [evolução dos diagramas](docs/architecture/evolution.md) mostra a arquitetura mudando, lab a lab.
 
@@ -251,14 +269,16 @@ tech-pix/
 ├── load-tests/          k6
 ├── docker/              init do PostgreSQL, Prometheus, Grafana
 ├── kubernetes/          kind-config e os manifests "crus" dos labs 09 a 12 (apontam para gitops/base)
+├── lab10/               Game Day da Aula 10: servicos (payment, worker, ledger, provider, clientes) e init dos bancos
 ├── gitops/              base + overlays dev/qa/prod (Kustomize)
 ├── argocd/              Applications
 ├── docs/
-│   ├── labs/            20 laboratórios
+│   ├── labs/            24 laboratórios
 │   ├── adr/             8 decisões, com consequências negativas
 │   └── architecture/    fronteiras, decision framework, evolução dos diagramas, mapa dos slides
 ├── scripts/             tudo que o instrutor roda ao vivo (.sh e .ps1)
-└── docker-compose.yml
+├── docker-compose.yml
+└── docker-compose.lab10.yml   stack do Game Day (primary + replica, Kafka, provider)
 ```
 
 ## Decisões

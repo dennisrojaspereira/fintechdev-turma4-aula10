@@ -1,0 +1,184 @@
+# Aula 10 - Game Day de Disaster Recovery.
+#
+# Nao rode este arquivo direto: use o controlador, que tambem prepara o roteamento e mede o exercicio.
+#   scripts/lab10.sh up        (Windows: scripts/lab10.ps1 up)
+#
+# Projeto separado do docker-compose.yml das aulas 7-9: nomes, rede, volumes e portas proprios.
+# Portas no host: 8088 (Payment API) e 8090 (provider). Os bancos e o Kafka nao sao publicados;
+# o controlador fala com eles por "docker exec".
+name: techpix-lab10
+
+x-app: &app
+  build:
+    context: ./lab10/app
+  image: techpix/lab10-app:local
+  restart: "no"
+  networks: [lab10]
+  volumes:
+    - ./lab10/.runtime:/runtime
+
+services:
+  pg-primary:
+    # Banco do Payment: o PRIMARY da "regiao principal".
+    image: postgres:16-alpine
+    container_name: lab10-pg-primary
+    hostname: pg-primary
+    command: ["postgres", "-c", "wal_level=replica", "-c", "max_wal_senders=5", "-c", "wal_keep_size=256MB"]
+    environment:
+      POSTGRES_DB: payment
+      POSTGRES_USER: payment
+      POSTGRES_PASSWORD: payment
+    volumes:
+      - lab10-pg-primary:/var/lib/postgresql/data
+      - ./lab10/postgres/primary-init.sh:/docker-entrypoint-initdb.d/01-replication.sh:ro
+      - ./lab10/postgres/payment-schema.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payment -d payment"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks: [lab10]
+
+  pg-replica:
+    # Replica por streaming (assincrona). Nasce de um pg_basebackup do primary.
+    image: postgres:16-alpine
+    container_name: lab10-pg-replica
+    hostname: pg-replica
+    user: postgres
+    entrypoint: ["/bin/sh", "/replica-entrypoint.sh"]
+    environment:
+      PGPASSWORD: replicator
+    volumes:
+      - lab10-pg-replica:/var/lib/postgresql/data
+      - ./lab10/postgres/replica-entrypoint.sh:/replica-entrypoint.sh:ro
+    depends_on:
+      pg-primary:
+        condition: service_healthy
+    networks: [lab10]
+
+  pg-ledger:
+    # Banco do Ledger (ownership por servico). Nao e afetado pelo desastre.
+    image: postgres:16-alpine
+    container_name: lab10-pg-ledger
+    hostname: pg-ledger
+    environment:
+      POSTGRES_DB: ledger
+      POSTGRES_USER: ledger
+      POSTGRES_PASSWORD: ledger
+    volumes:
+      - lab10-pg-ledger:/var/lib/postgresql/data
+      - ./lab10/postgres/ledger-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ledger -d ledger"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks: [lab10]
+
+  kafka:
+    # KRaft, um unico broker. Os dados ficam no container: docker stop/start preserva o log.
+    image: apache/kafka:3.8.0
+    container_name: lab10-kafka
+    hostname: kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      CLUSTER_ID: techpix-lab10-kraft-0001
+      # Heap pequeno: o lab precisa caber no notebook de cada equipe.
+      KAFKA_HEAP_OPTS: "-Xmx384m -Xms384m"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 30s
+    networks: [lab10]
+
+  provider:
+    # O provider externo (PSP). Fora da "regiao": continua processando durante o desastre.
+    <<: *app
+    container_name: lab10-provider
+    hostname: provider
+    command: ["python", "provider.py"]
+    volumes:
+      - lab10-provider:/data
+    ports:
+      - "8090:8090"
+
+  payment-api:
+    # Le o roteamento (lab10/.runtime/payment-db) a CADA requisicao.
+    <<: *app
+    container_name: lab10-payment-api
+    hostname: payment-api
+    command: ["python", "payment_api.py"]
+    environment:
+      PROVIDER_URL: http://provider:8090
+    ports:
+      - "8088:8088"
+    depends_on:
+      pg-primary:
+        condition: service_healthy
+      provider:
+        condition: service_started
+
+  payment-worker:
+    # Liquidacao (consulta o provider) + relay do Outbox para o Kafka.
+    # Le o roteamento UMA VEZ, na inicializacao (configuracao antiga que ninguem revisou).
+    <<: *app
+    container_name: lab10-payment-worker
+    hostname: payment-worker
+    command: ["python", "worker.py"]
+    environment:
+      PROVIDER_URL: http://provider:8090
+      KAFKA_BOOTSTRAP: kafka:9092
+    depends_on:
+      pg-primary:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  ledger:
+    # Consumidor idempotente: registra debito e credito para cada PaymentCompleted.
+    <<: *app
+    container_name: lab10-ledger
+    hostname: ledger
+    command: ["python", "ledger.py"]
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+    depends_on:
+      pg-ledger:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  loadgen:
+    # Clientes pagando o tempo todo. Quando nao encontram o pagamento, REENVIAM com a mesma chave.
+    <<: *app
+    container_name: lab10-loadgen
+    hostname: loadgen
+    command: ["python", "loadgen.py"]
+    environment:
+      API_URL: http://payment-api:8088
+    depends_on:
+      payment-api:
+        condition: service_started
+
+networks:
+  lab10:
+    name: lab10-net
+
+volumes:
+  lab10-pg-primary:
+  lab10-pg-replica:
+  lab10-pg-ledger:
+  lab10-provider:

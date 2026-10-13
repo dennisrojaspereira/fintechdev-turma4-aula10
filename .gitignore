@@ -10,3 +10,5 @@ scripts/aula9/.lab9-state.json
 scripts/aula9/.lab9-server.pid
 scripts/aula9/.synthetic-state.json
 scripts/aula9/.synthetic-monitor.pid
+lab10/.runtime/
+relatorios/
