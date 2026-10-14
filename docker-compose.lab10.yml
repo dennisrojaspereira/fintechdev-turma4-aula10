@@ -48,8 +48,29 @@ services:
     entrypoint: ["/bin/sh", "/replica-entrypoint.sh"]
     environment:
       PGPASSWORD: replicator
+      APP_NAME: regiao_b
     volumes:
       - lab10-pg-replica:/var/lib/postgresql/data
+      - ./lab10/postgres/replica-entrypoint.sh:/replica-entrypoint.sh:ro
+    depends_on:
+      pg-primary:
+        condition: service_healthy
+    networks: [lab10]
+
+  pg-standby:
+    # So na demo de zonas (profile "zonas"): standby SINCRONO em outra zona da mesma regiao.
+    #   scripts/lab10.sh up nao sobe este servico; a demo /zonas do painel sobe quando precisa.
+    profiles: [zonas]
+    image: postgres:16-alpine
+    container_name: lab10-pg-standby
+    hostname: pg-standby
+    user: postgres
+    entrypoint: ["/bin/sh", "/replica-entrypoint.sh"]
+    environment:
+      PGPASSWORD: replicator
+      APP_NAME: az_b
+    volumes:
+      - lab10-pg-standby:/var/lib/postgresql/data
       - ./lab10/postgres/replica-entrypoint.sh:/replica-entrypoint.sh:ro
     depends_on:
       pg-primary:
@@ -180,5 +201,6 @@ networks:
 volumes:
   lab10-pg-primary:
   lab10-pg-replica:
+  lab10-pg-standby:
   lab10-pg-ledger:
   lab10-provider:

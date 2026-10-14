@@ -2,6 +2,34 @@
 
 Gabarito e roteiro de condução do [Lab 24](24-game-day.md). **Não distribuir aos alunos.**
 
+## Versão curta: demo guiada (recomendada)
+
+Se o Game Day completo for demais para a turma, projete a demo. É uma história em 5 atos sobre **um único conceito, perda de dados no failover (RPO)**. Você aperta Enter entre os atos e a tela explica o que está acontecendo:
+
+```bash
+scripts/lab10.sh reset                 # ambiente limpo (~1 min)
+scripts/lab10.sh demo                  # ~5 min; --atraso 30 = segundos de replicação cortada
+```
+
+Ou no navegador, melhor para projetar: `python3 scripts/aula10/painel10.py` e abra **http://localhost:8098/demo**. Avance com o botão ou com a barra de espaço. O botão "Reiniciar ambiente" (no início e no resumo) faz o `reset`.
+
+1. **Tudo normal:** provider, banco principal e réplica crescem juntos (barras ao vivo).
+2. **A réplica fica para trás:** a replicação é cortada e a barra da réplica congela.
+3. **A região cai:** o principal sai do ar. Pergunta para a turma: esperar ou promover?
+4. **Promover:** mostra a janela perdida (RPO observado) e quantos Pix o provider pagou que a Tech Pix não conhece mais.
+5. **Reconciliar pelo provider:** os perdidos voltam a 0 e os clientes voltam.
+
+A demo isola o antigo primary sozinha e pausa os clientes durante a queda, para não abrir as discussões de split-brain e duplicação. Para repetir: `reset`.
+
+### Zonas e regiões (aba 2 da mesma página)
+
+Em **http://localhost:8098/zonas** (ou pela aba "2 · Zonas e regiões"), a mesma infraestrutura vira uma topologia AWS: primary na `sa-east-1a`, standby **síncrono** na `sa-east-1b` (container `pg-standby`, que só sobe nesta demo) e réplica **assíncrona** em `us-east-1`. Ela cobre os slides 15, 18 e 21.
+
+- **Cenário 1 · cai uma AZ:** failover para a `sa-east-1b`. Perda esperada: zero.
+- **Cenário 2 · cai a região:** o enlace entre regiões cai, depois as duas AZs. Failover para `us-east-1`. Perda: o atraso da réplica, reconstruída depois pelo provider.
+
+Rode um cenário, clique em "Reiniciar ambiente" e rode o outro. A tabela "Comparação" guarda os dois resultados lado a lado (fica em `lab10/.runtime/zonas-historico.json` e sobrevive ao reset).
+
 ## O que é real e o que é simulado
 
 | Real (containers) | Simulado |

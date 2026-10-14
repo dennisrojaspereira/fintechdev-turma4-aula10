@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zonas e Regiões</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #111217; --panel: #181b1f; --panel-hi: #22252b; --border: rgba(204, 204, 220, 0.12);
+    --text: #ccccdc; --muted: #8e8e9e; --strong: #ffffff;
+    --green: #73bf69; --yellow: #fade2a; --orange: #ff9830; --red: #f2495c; --blue: #5794f2; --purple: #b877d9;
+    --btn: #3d71d9; --btn-hover: #4f80e1;
+    --region: #2ea8a8; --az: #5794f2;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 Inter, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .nav { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+         padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  .logo { width: 26px; height: 26px; border-radius: 6px; flex: none; background: conic-gradient(from 200deg, #f05a28, #fbca0a, #f05a28); }
+  .crumb { font-size: 16px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .crumb b { color: var(--text); font-weight: 500; }
+  .tabs { display: flex; gap: 2px; margin-left: 8px; }
+  .tabs a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; padding: 6px 12px; border-radius: 4px; white-space: nowrap; }
+  .tabs a:hover { color: var(--text); background: var(--panel-hi); }
+  .tabs a.on { color: var(--strong); background: var(--panel-hi); box-shadow: inset 0 -2px 0 #f05a28; }
+  .spacer { flex: 1; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--border);
+          border-radius: 4px; font-size: 13px; background: var(--bg); white-space: nowrap; }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  .pill .dot.off { background: var(--muted); }
+  button { font: inherit; font-size: 14px; font-weight: 500; padding: 6px 14px; border-radius: 4px; cursor: pointer;
+           border: 1px solid var(--border); background: var(--panel-hi); color: var(--text); white-space: nowrap; }
+  button:hover { border-color: rgba(204, 204, 220, 0.3); }
+  button.go { background: var(--btn); border-color: var(--btn); color: #fff; font-size: 16px; padding: 8px 18px; }
+  button.go:hover { background: var(--btn-hover); }
+  button:disabled { opacity: .5; cursor: wait; }
+  .err { color: var(--red); font-size: 14px; }
+
+  .dash { display: grid; grid-template-columns: repeat(12, 1fr); gap: 8px; padding: 8px 16px 24px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 2px; min-width: 0; display: flex; flex-direction: column; }
+  .ph { display: flex; align-items: center; gap: 8px; padding: 6px 10px 0; min-height: 30px; font-size: 14px; font-weight: 500; }
+  .ph .sub { color: var(--muted); font-weight: 400; font-size: 13px; }
+  .pb { padding: 8px 12px 12px; flex: 1; position: relative; }
+  .s12 { grid-column: span 12; } .s8 { grid-column: span 8; } .s4 { grid-column: span 4; } .s6 { grid-column: span 6; } .s3 { grid-column: span 3; }
+  .row5 { grid-column: span 12; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .row-title { grid-column: span 12; font-size: 15px; font-weight: 500; padding: 8px 2px 0; }
+  .row-title::before { content: "\25BE  "; color: var(--muted); }
+
+  .story h1 { margin: 0 0 8px; font-size: 30px; line-height: 1.2; color: var(--strong); font-weight: 600; }
+  .story p { margin: 0 0 8px; font-size: 20px; line-height: 1.5; max-width: 1000px; }
+  .story strong { color: var(--strong); }
+  .q { margin-top: 12px; padding: 8px 12px; border-left: 3px solid var(--orange); background: rgba(255, 152, 48, 0.08); }
+  .steps { display: flex; gap: 4px; margin-left: auto; }
+  .steps span { width: 26px; height: 4px; border-radius: 2px; background: var(--panel-hi); }
+  .steps span.on { background: var(--blue); }
+  .choose { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+  .choose button { font-size: 18px; padding: 14px 20px; text-align: left; line-height: 1.3; }
+  .choose button small { display: block; color: var(--muted); font-size: 14px; font-weight: 400; }
+
+  .stat .pb { display: flex; flex-direction: column; justify-content: center; }
+  .stat .v { font-size: 46px; font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .stat .u { font-size: 22px; margin-left: 4px; }
+  .stat .note { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .stat.bgred { background: #c4162a; } .stat.bgred .v, .stat.bgred .ph, .stat.bgred .note { color: #fff; }
+  .stat.bggreen { background: #37872d; } .stat.bggreen .v, .stat.bggreen .ph, .stat.bggreen .note { color: #fff; }
+
+  /* diagrama */
+  .diagram svg { width: 100%; height: auto; display: block; }
+  .diagram text { font-family: Inter, -apple-system, "Segoe UI", sans-serif; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; padding: 2px 12px 10px; font-size: 14px; color: var(--muted); }
+  .legend i { width: 22px; height: 0; display: inline-block; vertical-align: middle; margin-right: 6px; border-top: 3px solid; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 17px; }
+  th { text-align: left; color: var(--blue); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 8px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  td.good { color: var(--green); font-weight: 600; } td.bad { color: var(--red); font-weight: 600; }
+  td.muted { color: var(--muted); }
+  ol.sum { margin: 0; padding-left: 26px; font-size: 19px; } ol.sum li { margin-bottom: 8px; }
+  ol.sum strong { color: var(--strong); }
+  pre { margin: 0; font: 13px/1.45 Menlo, Consolas, monospace; max-height: 300px; overflow: auto; white-space: pre-wrap; }
+  .watch { margin: 14px 0 0; padding: 12px 16px; border-left: 4px solid var(--yellow); background: rgba(250, 222, 42, 0.07); font-size: 18px; }
+  .watch b { color: var(--yellow); font-size: 13px; letter-spacing: .08em; display: block; margin-bottom: 2px; }
+  .inline-res { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .inline-res div { background: var(--panel-hi); border: 1px solid var(--border); border-radius: 4px; padding: 8px 14px; font-size: 15px; color: var(--muted); }
+  .inline-res b { display: block; font-size: 28px; font-weight: 600; color: var(--strong); font-variant-numeric: tabular-nums; }
+  .inline-res .bad b { color: var(--red); } .inline-res .good b { color: var(--green); }
+  .actionbar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .actionbar .nx { flex: 1 1 320px; margin: 0; font-size: 16px; color: var(--muted); }
+  .actionbar .nx b { color: var(--text); }
+  button.go.big { font-size: 20px; padding: 14px 26px; box-shadow: 0 0 0 0 rgba(61,113,217,.6); animation: glow 2s infinite; }
+  @keyframes glow { 70% { box-shadow: 0 0 0 12px rgba(61,113,217,0); } 100% { box-shadow: 0 0 0 0 rgba(61,113,217,0); } }
+  .hint { color: var(--muted); font-size: 13px; }
+  .roteiro { list-style: none; margin: 0; padding: 0; counter-reset: r; }
+  .roteiro li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 15px; }
+  .roteiro li:last-child { border-bottom: 0; }
+  .roteiro li::before { counter-increment: r; content: counter(r); width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+                        background: var(--panel-hi); color: var(--muted); font-weight: 600; font-size: 13px; }
+  .roteiro li.done::before { content: "\2713"; background: #37872d; color: #fff; }
+  .roteiro li.cur { color: var(--strong); }
+  .roteiro li.cur::before { background: var(--btn); color: #fff; }
+  .roteiro li span { display: block; font-size: 13px; color: var(--muted); }
+  .roteiro li.cur span { color: var(--yellow); }
+  .real { margin: 0; padding-left: 20px; font-size: 15px; } .real li { margin-bottom: 6px; } .real b { color: var(--strong); font-weight: 600; }
+  .focus { animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { stroke-opacity: .15; } }
+  .choose button { flex: 1 1 280px; border-color: var(--btn); }
+  .choose button:hover { background: #2a3550; }
+  .col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .col .panel { flex: none; }
+  .col .roteiro li { padding: 6px 0; font-size: 14px; }
+  .story .pb { display: flex; flex-direction: column; }
+  .conhead { margin-top: 16px; font-size: 14px; font-weight: 500; color: var(--text); }
+  .conhead span { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 6px; }
+  .term { flex: 1 1 auto; min-height: 190px; max-height: 340px; margin-top: 6px; overflow-y: auto; background: #0b0c0e; border: 1px solid var(--border); border-radius: 2px; padding: 8px 10px;
+          font: 12.5px/1.55 "Roboto Mono", Menlo, Consolas, monospace; color: var(--text); }
+  .term .l { white-space: pre-wrap; word-break: break-word; }
+  .term .t { color: #5a5a66; margin-right: 6px; }
+  .term .k-step { color: var(--strong); font-weight: 700; margin-top: 8px; }
+  .term .k-step::before { content: "\25B6  "; color: var(--btn-hover); }
+  .term .k-cmd { color: #8ab8ff; }
+  .term .k-ok, .term .k-out { color: var(--green); }
+  .term .k-err { color: var(--red); }
+  .term .k-app { color: var(--yellow); }
+  .term .k-info { color: var(--muted); }
+  .term .empty { color: #5a5a66; }
+  [hidden] { display: none !important; }
+  @media (max-width: 900px) {
+    .s8, .s4, .s6, .s3 { grid-column: span 12; }
+    .row5 { grid-template-columns: repeat(2, 1fr); }
+    .stat .v { font-size: 34px; } .story h1 { font-size: 24px; } .story p { font-size: 17px; }
+    .crumb { display: none; } .tabs { margin-left: 0; overflow-x: auto; max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="nav">
+  <div class="logo"></div>
+  <div class="crumb">Aula 10 · <b>Disaster Recovery</b></div>
+  <nav class="tabs"><a href="/demo">1 · Perda de dados (RPO)</a><a href="/zonas" class="on">2 · Zonas e regiões</a><a href="/">Painel do Game Day</a></nav>
+
+  <div class="spacer"></div>
+  <span class="err" id="err"></span>
+  <span class="pill"><span class="dot" id="live"></span> 1,5s</span>
+  <button id="reset">Reiniciar ambiente</button>
+</div>
+
+<div class="dash">
+  <section class="panel s8 story">
+    <div class="ph"><span id="act"></span><div class="steps" id="steps"></div></div>
+    <div class="pb"><h1 id="title"></h1><div id="text"></div><div id="inres"></div><div id="watch"></div><div id="choose"></div>
+      <div class="actionbar" id="actionbar" hidden><p class="nx" id="nx"></p><button class="go big" id="go"></button><span class="hint">ou aperte espaço</span></div>
+      <div class="conhead">Console <span>comandos executados e o que as aplicações registram, ao vivo</span></div>
+      <div class="term" id="term"><div class="empty">Os comandos de cada passo aparecem aqui assim que você escolher um cenário.</div></div>
+    </div>
+  </section>
+  <section class="panel s4">
+    <div class="ph" id="rotitle">Como funciona</div>
+    <div class="pb" id="roteiro"></div>
+  </section>
+
+  <section class="panel s12 diagram">
+    <div class="ph">Topologia <span class="sub">o que piscar em amarelo é o que mudou ou o que observar agora</span></div>
+    <div class="pb"><svg id="topo" viewBox="0 0 1600 640" role="img" aria-label="Topologia multi-AZ e multi-região"></svg></div>
+    <div class="legend">
+      <span><i style="border-color:var(--green)"></i>replicação síncrona (mesma região)</span>
+      <span><i style="border-color:var(--orange);border-top-style:dashed"></i>replicação assíncrona (entre regiões)</span>
+      <span><i style="border-color:var(--blue)"></i>tráfego dos clientes (Route 53)</span>
+    </div>
+  </section>
+
+  <div class="row5">
+    <section class="panel stat"><div class="ph">Provider</div><div class="pb"><div class="v" id="vp" style="color:var(--blue)">-</div><div class="note">Pix enviados desde o início</div></div></section>
+    <section class="panel stat"><div class="ph">Banco ativo</div><div class="pb"><div class="v" id="va" style="font-size:34px">-</div><div class="note" id="na">quem aceita escrita</div></div></section>
+    <section class="panel stat" id="sd"><div class="ph">Fora do ar</div><div class="pb"><div class="v" id="vd">-</div><div class="note" id="nd">tempo sem banco para gravar</div></div></section>
+    <section class="panel stat" id="sl"><div class="ph">Atraso us-east-1</div><div class="pb"><div class="v" id="vl">-</div><div class="note">réplica entre regiões</div></div></section>
+    <section class="panel stat" id="sg"><div class="ph" id="tg">Sem registro</div><div class="pb"><div class="v" id="vg">-</div><div class="note" id="ng">Pix que o destino do failover não tem</div></div></section>
+  </div>
+
+  <section class="panel s6">
+    <div class="ph">Comparação <span class="sub">resultado medido de cada cenário</span></div>
+    <div class="pb" id="cmp"></div>
+  </section>
+  <section class="panel s6">
+    <div class="ph">O que é real aqui <span class="sub">nada é animação: cada caixa é um container</span></div>
+    <div class="pb"><ul class="real">
+      <li><b>Cada caixa "RDS PostgreSQL"</b> é um PostgreSQL de verdade, com replicação de verdade.</li>
+      <li><b>Linha verde (síncrona):</b> o primary só confirma um Pix depois que a sa-east-1b gravou.</li>
+      <li><b>Linha laranja (assíncrona):</b> a us-east-1 recebe as mudanças depois, sem o primary esperar.</li>
+      <li><b>"Cair"</b> = o container é derrubado (<code>docker kill</code>). <b>"Enlace caiu"</b> = a réplica é desconectada da rede.</li>
+      <li><b>Fencing</b> = o antigo primary é desconectado da rede. O <b>job legado</b> é um script que roda dentro da rede e tenta gravar nele.</li>
+      <li><b>Clientes</b> fazem Pix o tempo todo. <b>Provider</b> é quem move o dinheiro: fica fora da AWS e nunca cai.</li>
+    </ul></div>
+  </section>
+
+  <div class="row-title" id="rtitle" hidden></div>
+  <div id="extra" style="display:contents"></div>
+</div>
+
+<script>
+const FENCING = where => [
+  { id: "f-intro", stage: "reconciliado", title: "E se o antigo primary voltar?",
+    text: ["O banco da " + where + " não morreu de vez: daqui a pouco a energia volta e ele liga de novo. E ele <strong>ainda acha que é o primary</strong>.",
+           "Se algum serviço com configuração antiga ainda apontar para ele, teremos <strong>dois bancos aceitando escrita</strong>. Para isso existe o <strong>fencing</strong> (slide 16): tirar a autoridade de escrita do antigo primary.",
+           "<p class='q'>Analogia: é como cancelar o cartão de acesso de quem saiu da empresa. A pessoa até tenta passar na catraca, mas a porta não abre.</p>"],
+    watch: "No failover nós já fizemos o fencing: o antigo primary foi desconectado da rede antes de o novo assumir.",
+    button: "Religar o antigo primary", action: "volta", focus: ["primary"],
+    next: "o banco da " + where + " liga de novo, e um \"job legado\" (configuração antiga) tenta gravar nele." },
+  { id: "f-voltou", stage: "voltou", title: "Ele voltou, mas está isolado", fencingResult: true,
+    text: ["O antigo primary está ligado e se considera primary. Mas, como está <strong>fora da rede</strong>, o job legado não consegue alcançá-lo: a escrita foi <strong>recusada</strong>.",
+           "Só existe <strong>um escritor</strong>: o banco novo."],
+    watch: "A caixa da " + where + " voltou com a etiqueta \"ANTIGO · ISOLADO\". Veja acima o resultado da tentativa do job legado.",
+    button: "E se não tivéssemos feito fencing?", action: "semfencing", focus: ["primary"],
+    next: "o antigo primary volta para a rede, e o mesmo job legado tenta gravar 3 vezes." },
+  { id: "f-split", stage: "splitbrain", title: "Sem fencing: dois escritores (split-brain)", fencingResult: true,
+    text: ["Agora há <strong>dois bancos PRIMARY</strong>. A API grava no novo; o job legado gravou no antigo.",
+           "Cada lado tem Pix que o outro não conhece. Nenhuma reconciliação automática resolve isso: alguém precisa investigar escrita por escrita (slide 17)."],
+    watch: "As duas caixas dizem PRIMARY, e a antiga está em vermelho: \"SPLIT-BRAIN\". Veja acima quantas escritas foram parar no banco errado.",
+    button: "Refazer o fencing", action: "refencing", focus: ["primary"],
+    next: "o antigo primary é isolado da rede de novo, e o job legado tenta mais uma vez." },
+  { id: "f-refencing", stage: "refencing", title: "Fencing de volta: um único escritor", fencingResult: true,
+    text: ["Na vida real, fencing pode ser: <strong>isolar ou desligar</strong> o antigo primary, <strong>revogar as credenciais</strong> de escrita dele, ou um <strong>token de época</strong> que o armazenamento recusa quando está velho (slide 16).",
+           "A regra do runbook: <strong>confirmar o fencing antes de liberar tráfego</strong>. Trocar o roteamento não basta: conexões abertas, jobs e configurações antigas continuam chegando no banco velho."],
+    watch: "A tentativa depois do fencing foi recusada. As escritas que já tinham ido para o banco errado continuam lá: fencing evita, não desfaz.",
+    button: "Resumo", focus: ["primary"], next: "mostra o resumo e as perguntas para a turma." },
+];
+const ZONA = [
+  { id: "z-normal", stage: "normal", title: "Multi-AZ: duas zonas, um escritor",
+    text: ["Uma região da AWS tem várias <strong>zonas de disponibilidade</strong> (AZs): datacenters separados, ligados por rede rápida.",
+           "O primary está na <strong>sa-east-1a</strong>. O standby da <strong>sa-east-1b</strong> é <strong>síncrono</strong>: um pagamento só é confirmado depois que ele também gravou (linha verde).",
+           "A réplica em us-east-1 é assíncrona. Neste cenário ela fica só olhando."],
+    button: "Derrubar a AZ sa-east-1a", action: "crash", focus: ["primary", "sync", "standby"],
+    watch: "As três caixas RDS com a mesma contagem de Pix subindo juntas. A linha verde liga sa-east-1a → sa-east-1b.",
+    next: "o banco da sa-east-1a é desligado, como se o datacenter tivesse perdido energia." },
+  { id: "z-queda", stage: "queda", title: "A zona sa-east-1a caiu",
+    text: ["O primary sumiu e a Payment API não consegue gravar. O contador de <strong>tempo fora do ar</strong> está rodando.",
+           "<p class='q'>Quantos pagamentos vocês acham que perdemos?</p>"],
+    button: "Failover para sa-east-1b", action: "failover", focus: ["azA", "standby"],
+    watch: "A AZ sa-east-1a ficou vermelha e o card \"Fora do ar\" está contando. A sa-east-1b parou com a mesma contagem que o primary tinha.",
+    next: "o banco morto é isolado da rede (fencing), o standby da sa-east-1b vira primary e a API passa a gravar nele." },
+  { id: "z-promovido", stage: "promovido", title: "Failover dentro da região",
+    text: ["O standby da sa-east-1b virou primary e o Route 53 continua apontando para a mesma região.",
+           "Como toda escrita esperava por ele, <strong>ele tem tudo</strong>. Vamos conferir com o provider."],
+    button: "Reconciliar com o provider", action: "reconcile", result: true, focus: ["standby"],
+    watch: "A caixa da sa-east-1b agora diz PRIMARY. Os números acima mostram o que se perdeu e quanto tempo ficamos fora.",
+    next: "comparamos, Pix por Pix, o que o provider pagou com o que o banco novo tem, e reconstruímos o que faltar." },
+  { id: "z-rec", stage: "reconciliado", title: "Conferido: nada se perdeu",
+    text: ["Multi-AZ síncrono protege contra a perda de <strong>uma</strong> zona.",
+           "<p class='q'>E se as duas AZs caírem juntas? Elas estão na mesma região. Isso é o Cenário 2.</p>"],
+    result: true,
+    watch: "Nada para reconstruir. A tabela \"Comparação\" (abaixo do diagrama) já tem a coluna \"Cai 1 AZ\".",
+    button: "Próximo: e se o antigo primary voltar?", result: true, next: "explicamos o fencing." },
+  ...FENCING("sa-east-1a"),
+  { id: "z-sum", stage: "reconciliado", summary: true, title: "O que vimos", text: [],
+    button: "Reiniciar e rodar o Cenário 2", action: "reset", next: "o ambiente volta ao início (~1 min). A comparação é mantida." },
+];
+const REGIAO = [
+  { id: "r-normal", stage: "normal", title: "Warm standby em outra região",
+    text: ["Para sobreviver à perda da região inteira, mantemos uma cópia em <strong>us-east-1</strong>, a milhares de km.",
+           "Nessa distância a réplica é <strong>assíncrona</strong> (linha laranja): o primary não espera por ela. Num dia normal, ela fica poucos segundos atrás."],
+    button: "Derrubar o enlace entre regiões", action: "degrade", focus: ["link", "replica"],
+    watch: "A linha laranja tracejada leva os dados até us-east-1. O card \"Atraso us-east-1\" mostra quantos segundos ela está atrás (normalmente 0 a 1 s).",
+    next: "a rede entre as regiões cai: a réplica da us-east-1 para de receber dados. Os clientes continuam pagando em São Paulo." },
+  { id: "r-enlace", stage: "enlace", title: "O enlace entre regiões caiu",
+    text: ["Falhas regionais costumam começar assim: a rede degrada. A us-east-1 <strong>parou de receber</strong> dados e o atraso cresce.",
+           "A sa-east-1b continua em dia: é síncrona e está na mesma região.",
+           "<p class='q'>Alguém tem um alerta de atraso de replicação entre regiões?</p>"],
+    button: "Derrubar a região sa-east-1", action: "crash", focus: ["link", "replica"],
+    watch: "A linha ficou vermelha. A contagem da us-east-1 parou e o \"Atraso us-east-1\" sobe a cada segundo. Espere uns 20 s antes de avançar.",
+    next: "a região de São Paulo inteira cai: os dois bancos de uma vez. Os clientes são pausados." },
+  { id: "r-queda", stage: "queda", title: "A região sa-east-1 inteira caiu",
+    text: ["As <strong>duas AZs</strong> foram juntas: primary e standby síncrono. Aqui o multi-AZ não ajuda. Pausamos os clientes.",
+           "<p class='q'>Promovemos us-east-1 sabendo que ela está atrasada? Ou esperamos a região voltar, sem saber quando?</p>"],
+    button: "Failover para us-east-1", action: "failover", focus: ["regionA", "replica"],
+    watch: "As duas AZs vermelhas. O card \"Sem registro em us-east-1a\" mostra quantos Pix o provider já pagou e a réplica não tem.",
+    next: "o primary é isolado, a réplica da us-east-1 vira primary, o Route 53 passa a mandar os clientes para lá e a API de lá é ativada." },
+  { id: "r-promovido", stage: "promovido", title: "Failover entre regiões: o preço do atraso",
+    text: ["O Route 53 passou a mandar os clientes para us-east-1, mas a réplica estava atrasada.",
+           "A janela perdida é exatamente o atraso dela no momento da queda: o <strong>RPO</strong> real."],
+    button: "Reconciliar com o provider", action: "reconcile", result: true, focus: ["route", "apiB", "replica"],
+    watch: "O Route 53 aponta para us-east-1 e a API de lá está ATIVA. Os números acima mostram a janela perdida e os Pix sem registro.",
+    next: "os Pix que faltam são reconstruídos a partir do provider (nada é reenviado) e os clientes voltam." },
+  { id: "r-rec", stage: "reconciliado", title: "Recuperado pelo provider",
+    text: ["Os Pix que sumiram do banco foram reconstruídos a partir do provider, com o <strong>mesmo id</strong>. Nada foi reenviado. Os clientes voltaram."],
+    result: true,
+    watch: "\"Sem registro\" voltou a 0. A tabela \"Comparação\" (abaixo do diagrama) mostra os dois cenários lado a lado.",
+    button: "Próximo: e se o antigo primary voltar?", next: "explicamos o fencing." },
+  ...FENCING("região sa-east-1"),
+  { id: "r-sum", stage: "reconciliado", summary: true, title: "O que vimos", text: [],
+    button: "Reiniciar e rodar o Cenário 1", action: "reset", next: "o ambiente volta ao início (~1 min). A comparação é mantida." },
+];
+const INTRO = { id: "intro", title: "Zona ou região: o que cai muda tudo",
+  text: ["Na AWS, uma <strong>região</strong> (ex.: São Paulo) tem várias <strong>zonas</strong> (AZs): datacenters separados. O diagrama abaixo mostra a Tech Pix com um banco em cada lugar.",
+         "Vamos derrubar um pedaço e ver, com números reais, quanto tempo ficamos fora e quantos Pix se perdem.",
+         "<p class='q'>Antes de começar, pergunte à turma: perder <strong>uma zona</strong> ou perder <strong>a região</strong>? Em qual se perdem dados?</p>"],
+  watch: "Escolha um cenário para começar:" };
+
+let flow = null, i = 0, snap = {}, busy = false;
+const $ = id => document.getElementById(id);
+const fmtBRL = v => "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const mmss = s => { if (s == null) return "-"; s = Math.round(s); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
+
+function step() { return flow ? flow[i] : INTRO; }
+
+function render() {
+  const s = step();
+  const n = flow ? flow.length - 1 : 0;
+  $("act").textContent = !flow ? "Introdução" : (snap.scenario === "zona" ? "Cenário 1 · cai uma zona" : "Cenário 2 · cai a região") + (s.summary ? " · resumo" : ` · passo ${i + 1} de ${n}`);
+  $("steps").innerHTML = flow ? flow.slice(0, n).map((_, k) => `<span class="${k <= i ? "on" : ""}"></span>`).join("") : "";
+  $("title").textContent = s.title;
+  $("text").innerHTML = s.text.map(t => t.startsWith("<p") ? t : `<p>${t}</p>`).join("");
+  $("choose").innerHTML = flow ? "" : `<div class="choose">
+      <button data-s="zona">Cenário 1 · cai uma zona (AZ)<small>Um datacenter de São Paulo cai. Failover para a outra zona da mesma região.</small></button>
+      <button data-s="regiao">Cenário 2 · cai a região inteira<small>São Paulo inteira cai. Failover para N. Virginia (EUA).</small></button></div>`;
+  $("choose").querySelectorAll("button").forEach(b => b.onclick = () => start(b.dataset.s));
+  $("watch").innerHTML = s.watch ? `<div class="watch"><b>${flow ? "OBSERVE AGORA" : "COMECE AQUI"}</b>${s.watch}</div>` : "";
+  $("actionbar").hidden = !s.button;
+  $("go").textContent = s.button || "";
+  $("nx").innerHTML = s.next ? `<b>Ao clicar:</b> ${s.next}` : "";
+  const f = snap.failover;
+  $("inres").innerHTML = s.result && f ? `<div class="inline-res">
+      <div class="${f.perdidos ? "bad" : "good"}"><b>${f.janela}</b>janela perdida (RPO)</div>
+      <div class="${f.perdidos ? "bad" : "good"}"><b>${f.perdidos}</b>Pix perdidos</div>
+      <div><b>${f.rto}</b>fora do ar (RTO)</div>
+      <div class="${f.perdidos ? "bad" : "good"}"><b>${fmtBRL(f.valor)}</b>sem registro</div></div>` : "";
+  const fe = snap.fencing;
+  if (s.fencingResult && fe) {
+    const line = (label, t) => t ? `<div class="${t.ok ? "bad" : "good"}"><b>${t.ok ? "ACEITA" : "RECUSADA"}</b>${label} · ${t.hora}</div>` : "";
+    $("inres").innerHTML = `<div class="inline-res">
+      ${line("job legado com fencing", fe.isolado)}
+      ${fe.sem ? line(`job legado sem fencing (${fe.sem.filter(t => t.ok).length} de ${fe.sem.length})`, fe.sem[fe.sem.length - 1]) : ""}
+      ${fe.depois ? line("job legado após refazer o fencing", fe.depois) : ""}
+      ${fe.banco_errado != null ? `<div class="${fe.banco_errado ? "bad" : "good"}"><b>${fe.banco_errado}</b>escritas no banco errado</div>` : ""}</div>`;
+  }
+  renderRoteiro(s);
+  renderExtra(s); draw();
+}
+
+function renderRoteiro(s) {
+  if (!flow) {
+    $("rotitle").textContent = "Como funciona";
+    $("roteiro").innerHTML = `<ol class="roteiro">
+      <li class="cur"><div>Escolha um cenário<span>nos botões à esquerda</span></div></li>
+      <li><div>Leia o passo em voz alta e clique no botão azul<span>ou aperte espaço</span></div></li>
+      <li><div>Olhe o diagrama: o que pisca é o que mudou</div></li>
+      <li><div>No fim, reinicie e rode o outro cenário</div></li>
+      <li><div>Compare os dois na tabela "Comparação"</div></li></ol>`;
+    return;
+  }
+  $("rotitle").textContent = "Roteiro do cenário";
+  $("roteiro").innerHTML = `<ol class="roteiro">${flow.map((st, k) =>
+    `<li class="${k < i ? "done" : k === i ? "cur" : ""}"><div>${st.title}${st.button ? `<span>${k === i ? "agora: " : ""}${st.button}</span>` : ""}</div></li>`).join("")}</ol>`;
+}
+
+function renderExtra(s) {
+  let title = "", html = "";
+  const f = snap.failover, r = snap.reconciliacao;
+  if (s.summary) {
+    title = "Resumo";
+    html = `<section class="panel s12"><div class="ph">O que vimos</div><div class="pb story"><ol class="sum">
+      <li><strong>Zona ≠ região.</strong> Multi-AZ resolve a perda de um datacenter. A perda da região derruba todas as AZs juntas.</li>
+      <li><strong>Síncrona na mesma região:</strong> RPO zero quando cai uma AZ, mas toda escrita paga a latência de esperar a outra zona.</li>
+      <li><strong>Entre regiões é assíncrona:</strong> o RPO real é o atraso da réplica no momento da queda. Por isso o atraso precisa de alerta.</li>
+      <li><strong>Fora do ar</strong> inclui a decisão humana: o failover só começa quando alguém autoriza.</li>
+      <li>O warm standby só fecha a conta porque existe uma fonte externa (o provider) para <strong>reconciliar</strong> o que se perdeu.</li>
+      <li><strong>Fencing antes de liberar tráfego:</strong> sem ele, o antigo primary volta aceitando escrita e temos dois escritores (split-brain). Fencing evita, não desfaz.</li>
+    </ol><p class="q"><strong>Para discutir:</strong> que capacidades da Tech Pix precisam de multi-região, e quais podem ficar só em multi-AZ? Quanto custa cada uma?</p></div></section>`;
+  } else if (s.result && f) {
+    title = "Resultado do failover";
+    const zero = f.perdidos === 0;
+    html = `
+      <section class="panel stat s3 ${zero ? "bggreen" : "bgred"}"><div class="ph">Janela perdida (RPO)</div><div class="pb"><div class="v">${f.janela}</div><div class="note">${zero ? "nada ficou para trás" : "atraso da réplica na queda"}</div></div></section>
+      <section class="panel stat s3"><div class="ph">Fora do ar (RTO observado)</div><div class="pb"><div class="v">${f.rto}</div><div class="note">da queda até a API aceitar escrita</div></div></section>
+      <section class="panel stat s3"><div class="ph">Pix que o banco novo não conhece</div><div class="pb"><div class="v" style="color:${zero ? "var(--green)" : "var(--red)"}">${f.perdidos}</div><div class="note">${f.pagos} já pagos no provider</div></div></section>
+      <section class="panel stat s3"><div class="ph">Valor sem registro</div><div class="pb"><div class="v" style="color:${zero ? "var(--green)" : "var(--red)"};font-size:38px">${fmtBRL(f.valor)}</div><div class="note">${r ? `reconstruídos: ${r.antes - r.depois}` : "antes da reconciliação"}</div></div></section>
+      ${f.exemplos.length ? `<section class="panel s12"><div class="ph">Exemplos <span class="sub">Pix pagos que sumiram do banco</span></div><div class="pb"><table>
+        <tr><th>Hora</th><th>Valor</th><th>De</th><th>Para</th><th>Provider</th><th>Tech Pix</th></tr>
+        ${f.exemplos.map(e => `<tr><td>${e.hora}</td><td>R$ ${e.valor}</td><td>${e.de}</td><td>${e.para}</td><td class="good">PAGO</td><td class="bad">${r ? "reconstruído" : "não existe"}</td></tr>`).join("")}
+      </table></div></section>` : ""}`;
+  }
+  $("rtitle").hidden = !title; $("rtitle").textContent = title;
+  $("extra").innerHTML = html;
+}
+
+function renderCmp() {
+  const h = snap.historico || [];
+  const row = c => h.find(x => x.cenario === c);
+  const z = row("zona"), g = row("regiao");
+  const cell = (x, k, good) => !x ? `<td class="muted">ainda não rodou</td>` : `<td class="${good(x) ? "good" : "bad"}">${x[k]}</td>`;
+  $("cmp").innerHTML = `<table>
+    <tr><th></th><th>Cai 1 AZ</th><th>Cai a região</th></tr>
+    <tr><td>Failover para</td><td>sa-east-1b</td><td>us-east-1</td></tr>
+    <tr><td>Réplica</td><td>síncrona</td><td>assíncrona</td></tr>
+    <tr><td>Janela perdida</td>${cell(z, "janela", x => x.perdidos === 0)}${cell(g, "janela", x => x.perdidos === 0)}</tr>
+    <tr><td>Pix perdidos</td>${cell(z, "perdidos", x => x.perdidos === 0)}${cell(g, "perdidos", x => x.perdidos === 0)}</tr>
+    <tr><td>Fora do ar</td>${cell(z, "rto", () => true)}${cell(g, "rto", () => true)}</tr>
+  </table><p style="color:var(--muted);font-size:13px;margin:10px 0 0">Medido nesta máquina. Os números mudam a cada execução.</p>`;
+}
+
+// ---------------------------------------------------------------- diagrama
+const SVGNS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, text) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  return e;
+}
+function box(svg, x, y, w, h, o = {}) {
+  svg.appendChild(el("rect", { x, y, width: w, height: h, rx: o.rx ?? 6, fill: o.fill || "#181b1f",
+    stroke: o.stroke || "rgba(204,204,220,0.25)", "stroke-width": o.sw || 1.5, "stroke-dasharray": o.dash || "" }));
+}
+function txt(svg, x, y, s, o = {}) {
+  svg.appendChild(el("text", { x, y, fill: o.fill || "#ccccdc", "font-size": o.size || 18, "font-weight": o.weight || 400,
+    "text-anchor": o.anchor || "start" }, s));
+}
+function arrow(svg, pts, o = {}) {
+  svg.appendChild(el("polyline", { points: pts.map(p => p.join(",")).join(" "), fill: "none", stroke: o.color,
+    "stroke-width": o.w || 3, "stroke-dasharray": o.dash || "", "marker-end": o.head === false ? "" : `url(#h-${o.id})` }));
+}
+function marker(defs, id, color) {
+  const m = el("marker", { id: "h-" + id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" });
+  m.appendChild(el("path", { d: "M0,0 L10,5 L0,10 z", fill: color })); defs.appendChild(m);
+}
+
+const DB = { primary: { x: 90, y: 330, w: 360, label: "sa-east-1a" }, standby: { x: 570, y: 330, w: 360, label: "sa-east-1b" },
+             replica: { x: 1110, y: 330, w: 400, label: "us-east-1a" } };
+
+function dbCard(svg, role, n, primaries) {
+  const d = DB[role], h = 150;
+  const idle = !snap.stage;   // antes de escolher o cenario: nada caiu, so nao comecou
+  const down = !idle && (!n || n.state === "down"), fenced = n && n.state === "up" && !n.net;
+  const off = idle && (!n || n.state === "down");
+  const old = role === "primary" && !down && !off && n.primary && primaries > 1;   // o antigo primary voltou
+  const split = old && n.net;
+  let roleTxt = off ? "AINDA DESLIGADO" : down ? "FORA DO AR" : n.primary ? "PRIMARY · escrita" : role === "standby" ? "STANDBY síncrono" : "RÉPLICA assíncrona";
+  let color = off ? "#5a5a66" : down ? "#f2495c" : n.primary ? "#73bf69" : role === "standby" ? "#5794f2" : "#ff9830";
+  if (old) { roleTxt = split ? "PRIMARY · SPLIT-BRAIN" : "ANTIGO · ISOLADO"; color = split ? "#f2495c" : "#b877d9"; }
+  box(svg, d.x, d.y, d.w, h, { fill: down ? "rgba(242,73,92,0.12)" : "#22252b", stroke: color, sw: 2, dash: off ? "6 5" : "" });
+  txt(svg, d.x + 18, d.y + 34, "RDS PostgreSQL", { size: 16, fill: "#8e8e9e" });
+  svg.appendChild(el("rect", { x: d.x + d.w - 18 - roleTxt.length * 10.2, y: d.y + 14, width: roleTxt.length * 10.2, height: 28, rx: 3, fill: color }));
+  txt(svg, d.x + d.w - 18 - roleTxt.length * 5.1, d.y + 34, roleTxt, { size: 15, weight: 700, fill: down ? "#fff" : "#111217", anchor: "middle" });
+  txt(svg, d.x + 18, d.y + 84, n && n.count != null ? `${n.count} Pix` : idle ? "" : "-", { size: 34, weight: 600, fill: "#fff" });
+  let sub = idle ? (off ? "liga quando o cenário começa" : "contagem começa no cenário") : "";
+  if (!down && !off && n.lag != null) sub = `atraso: ${Math.round(n.lag)} s`;
+  if (!down && !off && n.primary) sub = "aceita escrita";
+  if (fenced) sub = "isolado da rede (fencing)";
+  if (old) sub = split ? "também aceita escrita!" : "fencing: ninguém alcança";
+  if (role === "replica" && n && n.state === "up" && !n.net && !n.primary) sub = `sem enlace · atraso ${Math.round(n.lag || 0)} s`;
+  txt(svg, d.x + 18, d.y + 122, sub, { size: 17, fill: sub.startsWith("sem enlace") ? "#f2495c" : "#ccccdc" });
+}
+
+function drawTopo() {
+  const svg = $("topo"); svg.innerHTML = "";
+  const defs = el("defs", {}); svg.appendChild(defs);
+  marker(defs, "blue", "#5794f2"); marker(defs, "green", "#73bf69"); marker(defs, "orange", "#ff9830"); marker(defs, "red", "#f2495c"); marker(defs, "gray", "#5a5a66");
+  const nd = snap.nodes || {}, st = snap.stage, sc = snap.scenario;
+  const regionDown = sc === "regiao" && ["queda", "promovido", "reconciliado"].includes(st);
+  const azDown = sc === "zona" && ["queda", "promovido", "reconciliado"].includes(st);
+  const inB = snap.route === "pg-replica";
+
+  // externos
+  box(svg, 30, 18, 190, 64, { fill: "#22252b" }); txt(svg, 125, 57, snap.clientes === false ? "Clientes (pausados)" : "Clientes", { anchor: "middle", weight: 600, fill: snap.clientes === false ? "#ff9830" : "#fff" });
+  box(svg, 640, 18, 320, 64, { fill: "#22252b", stroke: "#b877d9" }); txt(svg, 800, 46, "Route 53", { anchor: "middle", weight: 700, fill: "#fff" });
+  txt(svg, 800, 70, inB ? "aponta para us-east-1" : "aponta para sa-east-1", { anchor: "middle", size: 15, fill: "#8e8e9e" });
+  box(svg, 1340, 18, 230, 64, { fill: "#22252b", stroke: "#fade2a", dash: "6 4" }); txt(svg, 1455, 46, "Provider (PSP)", { anchor: "middle", weight: 700, fill: "#fff" });
+  txt(svg, 1455, 70, "fora da AWS · não cai", { anchor: "middle", size: 15, fill: "#8e8e9e" });
+  arrow(svg, [[220, 50], [636, 50]], { color: "#5794f2", id: "blue" });
+
+  // regiões
+  box(svg, 20, 112, 980, 516, { fill: regionDown ? "rgba(242,73,92,0.06)" : "transparent", stroke: regionDown ? "#f2495c" : "#2ea8a8", dash: "10 6", sw: 2 });
+  txt(svg, 40, 140, "Região sa-east-1 · São Paulo", { weight: 700, fill: regionDown ? "#f2495c" : "#2ea8a8" });
+  box(svg, 1040, 112, 540, 516, { fill: "transparent", stroke: "#2ea8a8", dash: "10 6", sw: 2 });
+  txt(svg, 1060, 140, "Região us-east-1 · N. Virginia", { weight: 700, fill: "#2ea8a8" });
+
+  // APIs
+  const apiA = !regionDown, apiB = inB;
+  box(svg, 60, 158, 900, 52, { fill: "#22252b", stroke: apiA ? "#73bf69" : "#f2495c" });
+  txt(svg, 80, 191, "Payment API · ALB + EKS (pods nas duas AZs)", { weight: 600, fill: "#fff" });
+  const apiAtxt = !apiA ? "FORA DO AR" : inB ? "em espera" : snap.api_ready ? "ATIVA" : "sem banco";
+  txt(svg, 940, 191, apiAtxt, { anchor: "end", weight: 700, size: 15, fill: apiAtxt === "ATIVA" ? "#73bf69" : apiAtxt === "em espera" ? "#8e8e9e" : "#f2495c" });
+  box(svg, 1080, 158, 460, 52, { fill: "#22252b", stroke: apiB ? "#73bf69" : "rgba(204,204,220,0.25)" });
+  txt(svg, 1100, 191, "Payment API · warm (1 pod)", { weight: 600, fill: "#fff" });
+  txt(svg, 1520, 191, apiB ? "ATIVA" : "em espera", { anchor: "end", weight: 700, size: 15, fill: apiB ? "#73bf69" : "#8e8e9e" });
+  arrow(svg, inB ? [[960, 82], [960, 96], [1440, 96], [1440, 154]] : [[760, 82], [760, 154]], { color: "#5794f2", id: "blue" });
+
+  // AZs
+  const az = (x, w, name, down) => {
+    box(svg, x, 236, w, 372, { fill: down ? "rgba(242,73,92,0.10)" : "transparent", stroke: down ? "#f2495c" : "#5794f2", dash: "4 4", sw: 1.5 });
+    txt(svg, x + 16, 262, "AZ " + name, { size: 16, weight: 600, fill: down ? "#f2495c" : "#5794f2" });
+    if (down) txt(svg, x + w / 2, 570, "ZONA INDISPONÍVEL", { anchor: "middle", weight: 800, size: 20, fill: "#f2495c" });
+  };
+  az(50, 440, "sa-east-1a", azDown || regionDown);
+  az(530, 440, "sa-east-1b", regionDown);
+  az(1070, 480, "us-east-1a", false);
+
+  // replicação
+  const pUp = nd.primary && nd.primary.state === "up" && nd.primary.primary;
+  const syncOk = pUp && (nd.primary.sync || "").includes("az_b:sync");
+  arrow(svg, [[450, 405], [566, 405]], { color: syncOk ? "#73bf69" : "#5a5a66", id: syncOk ? "green" : "gray", w: 4 });
+  txt(svg, 508, 395, "síncrona", { anchor: "middle", size: 15, weight: 600, fill: syncOk ? "#73bf69" : "#8e8e9e" });
+  const asyncOk = pUp && nd.replica && nd.replica.net && !nd.replica.primary;
+  const linkCut = nd.replica && nd.replica.state === "up" && !nd.replica.net;
+  arrow(svg, [[270, 480], [270, 590], [1310, 590], [1310, 484]], { color: linkCut ? "#f2495c" : asyncOk ? "#ff9830" : "#5a5a66", id: linkCut ? "red" : "orange", dash: "10 7", w: 3 });
+  txt(svg, 1018, 580, linkCut ? "enlace entre regiões caiu" : "assíncrona · cross-region", { anchor: "middle", size: 15, weight: 600, fill: linkCut ? "#f2495c" : asyncOk ? "#ff9830" : "#8e8e9e" });
+  if (linkCut) { txt(svg, 1018, 600, "✕", { anchor: "middle", size: 26, weight: 800, fill: "#f2495c" }); }
+
+  for (const r of ["primary", "standby", "replica"]) {
+    if (r === "standby" && !nd.standby) continue;
+    dbCard(svg, r, nd[r], Object.values(nd).filter(n => n.state === "up" && n.primary).length);
+  }
+  const FB = { primary: [90, 330, 360, 150], standby: [570, 330, 360, 150], replica: [1110, 330, 400, 150],
+               sync: [452, 372, 116, 44], link: [255, 560, 1070, 50], route: [640, 18, 320, 64], apiB: [1080, 158, 460, 52],
+               regionA: [20, 112, 980, 516], azA: [50, 236, 440, 372] };
+  const delay = -(Date.now() % 1200) + "ms";
+  for (const k of (step().focus || [])) {
+    const b = FB[k]; if (!b) continue;
+    const r = el("rect", { x: b[0] - 6, y: b[1] - 6, width: b[2] + 12, height: b[3] + 12, rx: 10, fill: "none", stroke: "#fade2a", "stroke-width": 4, class: "focus" });
+    r.style.animationDelay = delay; svg.appendChild(r);
+  }
+}
+
+function draw() {
+  drawTopo(); renderCmp(); renderConsole();
+  const nd = snap.nodes || {};
+  $("vp").textContent = snap.provider ?? "-";
+  const act = Object.entries(nd).find(([, n]) => n.state === "up" && n.primary);
+  $("va").textContent = act ? DB[act[0]].label : "nenhum";
+  $("va").style.color = act ? "var(--green)" : "var(--red)";
+  // tempo fora do ar
+  const t0 = snap.t_queda, t1 = snap.t_failover || (t0 ? Date.now() / 1000 : null);
+  const down = t0 ? t1 - t0 : null;
+  $("vd").textContent = down == null ? "00:00" : mmss(down);
+  $("sd").classList.toggle("bgred", !!(t0 && !snap.t_failover));
+  $("nd").textContent = snap.t_failover ? "do incidente até o failover" : t0 ? "contando..." : "tempo sem banco para gravar";
+  // atraso us-east-1
+  const lg = nd.replica && nd.replica.lag;
+  $("vl").innerHTML = lg == null ? "-" : Math.round(lg) + '<span class="u">s</span>';
+  $("sl").classList.toggle("bgred", lg != null && lg >= 10);
+  $("vl").style.color = lg == null ? "var(--muted)" : lg >= 10 ? "#fff" : lg >= 3 ? "var(--orange)" : "var(--green)";
+  // sem registro no destino
+  const dest = snap.scenario === "regiao" ? "replica" : "standby";
+  const dc = nd[dest] && nd[dest].count;
+  const gap = snap.provider != null && dc != null ? Math.max(snap.provider - dc, 0) : null;
+  $("tg").textContent = snap.scenario ? `Sem registro em ${DB[dest].label}` : "Sem registro";
+  $("vg").textContent = gap ?? "-";
+  $("sg").classList.toggle("bgred", !!gap && gap > 2);
+  $("sg").classList.toggle("bggreen", gap === 0 && ["promovido", "reconciliado"].includes(snap.stage));
+}
+
+// ---------------------------------------------------------------- ações
+function syncFlow() {
+  flow = snap.scenario === "zona" ? ZONA : snap.scenario === "regiao" ? REGIAO : null;
+  if (!flow) { i = 0; return; }
+  const k = flow.findIndex(s => s.stage === snap.stage);
+  if (k > i || flow[i].stage !== snap.stage) i = Math.max(k, 0);
+}
+
+async function call(path) {
+  const res = await fetch(path, { method: "POST" });
+  const j = await res.json();
+  if (!res.ok) throw new Error(j.error || "falhou");
+  return j;
+}
+
+async function refresh() {
+  const j = await (await fetch("/api/zonas/board")).json();
+  if (!j.error) snap = j;
+  return j;
+}
+
+async function start(sc) {
+  if (busy) return;
+  busy = true; $("err").textContent = "";
+  $("choose").querySelectorAll("button").forEach(b => { b.disabled = true; });
+  $("watch").innerHTML = "<div class='watch'><b>AGUARDE</b>Preparando o cenário: subindo o banco da sa-east-1b e ligando a replicação síncrona (~20 s)...</div>";
+  try { await call("/api/zonas/" + sc); await refresh(); i = 0; syncFlow(); }
+  catch (e) { $("err").textContent = e.message; }
+  busy = false; render();
+}
+
+async function go() {
+  const s = step();
+  if (busy || !s || !s.button) return;
+  $("err").textContent = "";
+  if (s.action === "reset") { await reset(); return; }
+  if (s.action) {
+    busy = true; $("go").disabled = true; $("go").textContent = "Executando...";
+    try { await call("/api/zonas/" + s.action); await refresh(); }
+    catch (e) { $("err").textContent = e.message; busy = false; $("go").disabled = false; $("go").textContent = s.button; return; }
+    busy = false; $("go").disabled = false;
+  }
+  i = Math.min(i + 1, flow.length - 1);
+  render();
+}
+
+async function reset() {
+  if (busy) return;
+  busy = true; $("reset").disabled = true; $("go").disabled = true; $("err").textContent = "";
+  $("rtitle").hidden = false; $("rtitle").textContent = "Reiniciando o ambiente (~1 min)";
+  $("extra").innerHTML = "<section class='panel s12'><div class='ph'>Logs</div><div class='pb'><pre id='log'></pre></div></section>";
+  try {
+    const { id } = await (await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cmd: "reset" }) })).json();
+    let from = 0;
+    while (true) {
+      const j = await (await fetch(`/api/job/${id}?from=${from}`)).json();
+      from = j.next; const log = $("log"); if (log) { log.textContent += j.text; log.scrollTop = log.scrollHeight; }
+      if (j.rc !== null) break;
+      await new Promise(ok => setTimeout(ok, 1000));
+    }
+  } catch (e) { $("err").textContent = "reset falhou: " + e.message; }
+  busy = false; $("reset").disabled = false; $("go").disabled = false;
+  await refresh().catch(() => {}); flow = null; i = 0; render();
+}
+
+let conLast = 0;
+function renderConsole() {
+  const lines = snap.console || [];
+  const term = $("term");
+  if (!lines.length) return;
+  if (lines[0].id > conLast + 1 || lines[lines.length - 1].id < conLast) { term.innerHTML = ""; conLast = 0; }
+  const fresh = lines.filter(l => l.id > conLast);
+  if (!fresh.length) return;
+  const stick = term.scrollHeight - term.scrollTop - term.clientHeight < 40;
+  if (term.querySelector(".empty")) term.innerHTML = "";
+  const esc = x => String(x).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  term.insertAdjacentHTML("beforeend", fresh.map(l => `<div class="l k-${l.k}"><span class="t">${l.t}</span>${esc(l.x)}</div>`).join(""));
+  conLast = fresh[fresh.length - 1].id;
+  if (stick) term.scrollTop = term.scrollHeight;
+}
+
+async function poll() {
+  try { await refresh(); $("live").classList.remove("off"); renderConsole(); if (!busy) draw(); }
+  catch (e) { $("live").classList.add("off"); }
+  setTimeout(poll, 1500);
+}
+
+document.addEventListener("keydown", e => {
+  if ((e.key === " " || e.key === "ArrowRight" || e.key === "PageDown") && flow) { e.preventDefault(); go(); }
+});
+$("go").onclick = go; $("reset").onclick = reset;
+(async () => { try { await refresh(); } catch (e) {} syncFlow(); render(); poll(); })();
+</script>
+</body>
+</html>

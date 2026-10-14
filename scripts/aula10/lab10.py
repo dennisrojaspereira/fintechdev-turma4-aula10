@@ -9,6 +9,7 @@ Ambiente
   logs <servico> [n]         ultimas linhas de log (primary, replica, kafka, provider, api, worker, ledger, loadgen)
 
 Instrutor
+  demo [--atraso 30]         demo guiada do professor (perda de dados no failover / RPO), Enter entre os atos
   chaos start [--lag 90] [--volta 480]
                              corta a replicacao; LAG s depois derruba o primary e o Kafka;
                              VOLTA s depois da queda religa o antigo primary (0 = nao religa)
@@ -59,7 +60,8 @@ SERVICES = [  # alias, container
 ALIAS = dict(SERVICES)
 ALIAS.update({"pg-primary": "lab10-pg-primary", "pg-replica": "lab10-pg-replica", "pg-ledger": "lab10-pg-ledger",
               "payment-api": "lab10-payment-api", "payment-worker": "lab10-payment-worker"})
-DB_CONTAINER = {"pg-primary": "lab10-pg-primary", "pg-replica": "lab10-pg-replica"}
+DB_CONTAINER = {"pg-primary": "lab10-pg-primary", "pg-replica": "lab10-pg-replica",
+                "pg-standby": "lab10-pg-standby"}  # pg-standby: so na demo de zonas
 ROUTES = {"primary": "pg-primary", "replica": "pg-replica"}
 
 
@@ -256,7 +258,8 @@ def cmd_up(_args):
             raise LabError("docker compose up falhou (veja a saida acima; 'logs kafka' ajuda)")
     print("Esperando a replica sincronizar com o primary...")
     wait_until("replica em streaming", lambda: pay_db(
-        "pg-primary", "SELECT count(*) FROM pg_stat_replication WHERE state = 'streaming'") == "1", 120)
+        "pg-primary", "SELECT count(*) FROM pg_stat_replication "
+                      "WHERE state = 'streaming' AND application_name <> 'az_b'") == "1", 120)
     print("Esperando a Payment API...")
     wait_until("payment-api pronta", lambda: http_json(API + "/health/ready")[0] == 200, 60)
 
@@ -272,13 +275,13 @@ def cmd_up(_args):
 
 
 def cmd_down(_args):
-    compose("down")
+    compose("--profile", "zonas", "down")
 
 
 def cmd_reset(_args):
     print("Apagando o ambiente do lab 10 (containers e volumes)...")
-    compose("down", "-v", "--remove-orphans")
-    for name in ("state.json", "payment-db", "maintenance", "loadgen-clients"):
+    compose("--profile", "zonas", "down", "-v", "--remove-orphans")
+    for name in ("state.json", "payment-db", "maintenance", "loadgen-clients", "demo.json", "zonas.json"):
         remove_runtime(name)
     save_state({"created": time.time(), "events": []})
     cmd_up([])
@@ -954,6 +957,12 @@ def cmd_report(args):
     print("Relatorio completo: " + os.path.relpath(path, os.getcwd()))
 
 
+def cmd_demo(args):
+    sys.modules.setdefault("lab10", sys.modules[__name__])  # demo10 reusa este modulo (e as mesmas excecoes)
+    import demo10
+    demo10.run(args)
+
+
 # ---------------------------------------------------------------------------
 
 COMMANDS = {
@@ -961,7 +970,7 @@ COMMANDS = {
     "chaos": cmd_chaos, "mark": cmd_mark, "maintenance": cmd_maintenance, "promote": cmd_promote,
     "fence": cmd_fence, "route": cmd_route, "start": lambda a: service_cmd("start", a),
     "restart": lambda a: service_cmd("restart", a), "provider": cmd_provider, "sql": cmd_sql,
-    "reconcile": cmd_reconcile, "check": cmd_check, "report": cmd_report,
+    "reconcile": cmd_reconcile, "check": cmd_check, "report": cmd_report, "demo": cmd_demo,
 }
 
 

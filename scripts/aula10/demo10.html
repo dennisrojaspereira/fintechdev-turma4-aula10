@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demo RPO - Aula 10</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Paleta do tema escuro do Grafana */
+  :root {
+    --bg: #111217; --panel: #181b1f; --panel-hi: #22252b; --border: rgba(204, 204, 220, 0.12);
+    --text: #ccccdc; --muted: #8e8e9e; --strong: #ffffff;
+    --green: #73bf69; --yellow: #fade2a; --orange: #ff9830; --red: #f2495c; --blue: #5794f2; --purple: #b877d9;
+    --btn: #3d71d9; --btn-hover: #4f80e1;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 Inter, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+  /* barra do topo */
+  .nav { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+         padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  .logo { width: 26px; height: 26px; border-radius: 6px; flex: none;
+          background: conic-gradient(from 200deg, #f05a28, #fbca0a, #f05a28); }
+  .crumb { font-size: 16px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .crumb b { color: var(--text); font-weight: 500; }
+  .tabs { display: flex; gap: 2px; margin-left: 8px; }
+  .tabs a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; padding: 6px 12px; border-radius: 4px; white-space: nowrap; }
+  .tabs a:hover { color: var(--text); background: var(--panel-hi); }
+  .tabs a.on { color: var(--strong); background: var(--panel-hi); box-shadow: inset 0 -2px 0 #f05a28; }
+  .spacer { flex: 1; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--border);
+          border-radius: 4px; color: var(--text); font-size: 13px; background: var(--bg); white-space: nowrap; }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  .pill .dot.off { background: var(--muted); }
+  button { font: inherit; font-size: 14px; font-weight: 500; padding: 6px 14px; border-radius: 4px; cursor: pointer;
+           border: 1px solid var(--border); background: var(--panel-hi); color: var(--text); white-space: nowrap; }
+  button:hover { border-color: rgba(204, 204, 220, 0.3); }
+  button.go { background: var(--btn); border-color: var(--btn); color: #fff; font-size: 16px; padding: 8px 18px; }
+  button.go:hover { background: var(--btn-hover); }
+  button:disabled { opacity: .5; cursor: wait; }
+
+  /* dashboard */
+  .dash { display: grid; grid-template-columns: repeat(12, 1fr); gap: 8px; padding: 8px 16px 24px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 2px; min-width: 0;
+           display: flex; flex-direction: column; }
+  .ph { display: flex; align-items: center; gap: 8px; padding: 6px 10px 0; min-height: 30px;
+        font-size: 14px; font-weight: 500; color: var(--text); }
+  .ph .sub { color: var(--muted); font-weight: 400; font-size: 13px; }
+  .pb { padding: 8px 12px 12px; flex: 1; position: relative; }
+  .s12 { grid-column: span 12; } .s8 { grid-column: span 8; } .s4 { grid-column: span 4; }
+  .s6 { grid-column: span 6; } .s3 { grid-column: span 3; }
+  .row5 { grid-column: span 12; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .row-title { grid-column: span 12; color: var(--text); font-size: 15px; font-weight: 500; padding: 8px 2px 0; }
+  .row-title::before { content: "\25BE  "; color: var(--muted); }
+
+  /* painel de texto (o ato) */
+  .story h1 { margin: 0 0 8px; font-size: 30px; line-height: 1.2; color: var(--strong); font-weight: 600; }
+  .story p { margin: 0 0 8px; font-size: 20px; line-height: 1.5; max-width: 980px; }
+  .story strong { color: var(--strong); }
+  .story .q { margin-top: 12px; padding: 8px 12px; border-left: 3px solid var(--orange);
+              background: rgba(255, 152, 48, 0.08); }
+  .steps { display: flex; gap: 4px; margin-left: auto; }
+  .steps span { width: 26px; height: 4px; border-radius: 2px; background: var(--panel-hi); }
+  .steps span.on { background: var(--blue); }
+
+  /* status dos componentes */
+  .health { list-style: none; margin: 0; padding: 0; }
+  .health li { display: flex; justify-content: space-between; gap: 10px; padding: 9px 2px; font-size: 18px;
+               border-bottom: 1px solid var(--border); }
+  .health li:last-child { border-bottom: 0; }
+  .badge { font-size: 14px; font-weight: 600; padding: 2px 10px; border-radius: 2px; color: #111217; white-space: nowrap; }
+  .b-green { background: var(--green); } .b-red { background: var(--red); color: #fff; }
+  .b-orange { background: var(--orange); } .b-blue { background: var(--blue); } .b-gray { background: var(--panel-hi); color: var(--muted); }
+
+  /* stat */
+  .stat .pb { display: flex; flex-direction: column; justify-content: center; }
+  .stat .v { font-size: 52px; font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .stat .u { font-size: 24px; margin-left: 4px; }
+  .stat .note { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .stat.bgred { background: #c4162a; } .stat.bgred .v, .stat.bgred .ph, .stat.bgred .note { color: #fff; }
+  .stat.bggreen { background: #37872d; } .stat.bggreen .v, .stat.bggreen .ph, .stat.bggreen .note { color: #fff; }
+
+  /* time series */
+  .ts canvas { display: block; width: 100%; height: 100%; }
+  .chart { height: 330px; }
+  .chart.small { height: 330px; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; padding: 4px 12px 10px; font-size: 14px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 14px; height: 4px; border-radius: 2px; display: inline-block; }
+  .legend b { color: var(--strong); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+  /* tabela */
+  table { width: 100%; border-collapse: collapse; font-size: 16px; }
+  th { text-align: left; color: var(--blue); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 7px 8px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  td.cell-red { background: rgba(242, 73, 92, 0.18); color: #ff8a96; }
+  td.cell-green { background: rgba(115, 191, 105, 0.15); color: var(--green); }
+
+  ol.sum { margin: 0; padding-left: 26px; font-size: 20px; } ol.sum li { margin-bottom: 8px; }
+  ol.sum strong { color: var(--strong); }
+  .err { color: var(--red); font-size: 14px; }
+  pre { margin: 0; font: 13px/1.45 "Roboto Mono", Menlo, Consolas, monospace; color: var(--text);
+        max-height: 300px; overflow: auto; white-space: pre-wrap; }
+  [hidden] { display: none !important; }
+
+  @media (max-width: 900px) {
+    .s8, .s4, .s6, .s3 { grid-column: span 12; }
+    .row5 { grid-template-columns: repeat(2, 1fr); }
+    .stat .v { font-size: 38px; }
+    .story h1 { font-size: 24px; } .story p { font-size: 17px; }
+    .crumb { display: none; } .tabs { margin-left: 0; overflow-x: auto; max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="nav">
+  <div class="logo"></div>
+  <div class="crumb">Aula 10 · <b>Disaster Recovery</b></div>
+  <nav class="tabs"><a href="/demo" class="on">1 · Perda de dados (RPO)</a><a href="/zonas">2 · Zonas e regiões</a><a href="/">Painel do Game Day</a></nav>
+
+  <div class="spacer"></div>
+  <span class="err" id="err"></span>
+  <span class="pill">&#128339; Ultimos 5 minutos</span>
+  <span class="pill"><span class="dot" id="live"></span> 1,5s</span>
+  <button id="reset" hidden>Reiniciar ambiente</button>
+  <button class="go" id="go"></button>
+</div>
+
+<div class="dash">
+  <section class="panel s8 story">
+    <div class="ph"><span id="act"></span><div class="steps" id="steps"></div></div>
+    <div class="pb"><h1 id="title"></h1><div id="text"></div></div>
+  </section>
+  <section class="panel s4">
+    <div class="ph">Componentes</div>
+    <div class="pb"><ul class="health" id="health"></ul></div>
+  </section>
+
+  <div class="row5" id="stats">
+    <section class="panel stat"><div class="ph">Provider</div><div class="pb"><div class="v" id="vp" style="color:var(--blue)">0</div><div class="note">Pix enviados (o dinheiro sai aqui)</div></div></section>
+    <section class="panel stat" id="sm"><div class="ph">Banco principal</div><div class="pb"><div class="v" id="vm" style="color:var(--green)">0</div><div class="note" id="nm">Pix gravados</div></div></section>
+    <section class="panel stat"><div class="ph">Replica</div><div class="pb"><div class="v" id="vr" style="color:var(--orange)">0</div><div class="note">Pix copiados</div></div></section>
+    <section class="panel stat" id="sl"><div class="ph">Atraso da replica</div><div class="pb"><div class="v" id="vl">0<span class="u">s</span></div><div class="note">desde a ultima copia</div></div></section>
+    <section class="panel stat" id="sg"><div class="ph" id="tg">Sem copia na replica</div><div class="pb"><div class="v" id="vg">0</div><div class="note" id="ng">Pix que so existem no principal</div></div></section>
+  </div>
+
+  <section class="panel s8 ts">
+    <div class="ph">Pix recebidos <span class="sub">desde o inicio da demo</span></div>
+    <div class="pb chart"><canvas id="c1"></canvas></div>
+    <div class="legend" id="leg1"></div>
+  </section>
+  <section class="panel s4 ts">
+    <div class="ph">Atraso da replica <span class="sub">segundos</span></div>
+    <div class="pb chart small"><canvas id="c2"></canvas></div>
+    <div class="legend"><span><i style="background:var(--red);height:2px"></i> limite de alerta: 10 s</span></div>
+  </section>
+
+  <div class="row-title" id="rtitle" hidden></div>
+  <div id="extra" class="s12" style="display:contents"></div>
+</div>
+
+<script>
+// Cada passo: texto do ato + botao. "action" chama o lab; sem action so avanca a tela.
+const STEPS = [
+  { id: "intro", act: 0, title: "Quando o banco cai, o que se perde?",
+    text: ["Hoje vamos ver, ao vivo, o que acontece com os pagamentos quando o banco principal da Tech Pix cai.",
+           "Tudo aqui e real: dois bancos PostgreSQL, replicacao de verdade, clientes pagando o tempo todo."],
+    button: "Comecar", action: "begin" },
+  { id: "normal", act: 1, title: "Tudo normal",
+    text: ["Cada Pix vai para o <strong>provider</strong>, que faz o dinheiro sair, e para o <strong>banco principal</strong>, que guarda o registro.",
+           "A <strong>replica</strong> e uma copia do principal em outro lugar, para o dia em que ele morrer.",
+           "As tres linhas andam juntas e o atraso e quase zero."],
+    button: "Proximo ato" },
+  { id: "pre-cut", act: 2, title: "A replica fica para tras",
+    text: ["Um problema silencioso: a copia para a replica para de chegar (rede ruim, disco cheio, replica sobrecarregada...).",
+           "Ninguem percebe. Os clientes continuam pagando e o principal continua gravando."],
+    button: "Cortar a replicacao", action: "cut" },
+  { id: "cut", act: 2, title: "A replica fica para tras",
+    text: ["A linha laranja ficou reta. A area vermelha e o que existe <strong>so no principal</strong>: ainda nao tem copia.",
+           "<p class='q'>O atraso passou do limite de alerta. Quem estaria olhando esse grafico numa sexta as 18h?</p>"],
+    button: "Proximo ato" },
+  { id: "pre-crash", act: 3, title: "A regiao principal cai",
+    text: ["Sexta-feira, 18h. O datacenter do banco principal cai.",
+           "Os clientes ficam aguardando (vamos pausa-los para focar no banco)."],
+    button: "Derrubar o banco principal", action: "crash" },
+  { id: "crash", act: 3, title: "O banco principal esta fora do ar",
+    text: ["O principal sumiu, e com ele os Pix que so existiam la. O provider <strong>nao</strong> caiu: o dinheiro desses Pix ja saiu.",
+           "<p class='q'>E agora? Esperamos o principal voltar (sem saber quando) ou promovemos a replica (sabendo que ela esta atrasada)?</p>"],
+    button: "Promover a replica", action: "promote" },
+  { id: "promoted", act: 4, title: "Promover a replica: o preco do atraso",
+    text: ["A replica virou o banco da Tech Pix e o sistema voltou. Mas ela estava atrasada.",
+           "Isso e o <strong>RPO</strong>: quanto dado aceitamos perder no failover. A janela perdida e exatamente o atraso que a replica tinha na queda."],
+    button: "Proximo ato", result: "promocao" },
+  { id: "pre-rec", act: 5, title: "Recuperar o que se perdeu",
+    text: ["Esses Pix sumiram do <strong>nosso</strong> banco, mas nao do mundo: o provider sabe de todos. Ele e a fonte da verdade do dinheiro.",
+           "Reconciliar = comparar provider e banco e reconstruir o que falta, com o <strong>mesmo id</strong>. Nada e reenviado ao provider."],
+    button: "Reconciliar", action: "reconcile", result: "promocao" },
+  { id: "rec", act: 5, title: "Recuperado",
+    text: ["Pagamentos reconstruidos a partir do provider. Os clientes voltaram e a Tech Pix reabriu sem perder nenhum pagamento."],
+    button: "Resumo", result: "reconciliacao" },
+  { id: "summary", act: 6, title: "O que vimos", text: [], button: null, summary: true },
+];
+const STAGE_TO_STEP = { normal: "normal", cortada: "cut", queda: "crash", promovida: "promoted", reconciliada: "rec" };
+const NOTES = { cut: "replicacao cortada", crash: "queda do principal", promote: "promocao", reconcile: "reconciliacao" };
+const C = n => getComputedStyle(document.documentElement).getPropertyValue("--" + n).trim();
+
+let i = 0, snap = {}, busy = false, hist = [], notes = [];
+const $ = id => document.getElementById(id);
+const fmtBRL = v => "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function render() {
+  const s = STEPS[i];
+  $("act").textContent = s.act === 0 ? "Introducao" : s.act === 6 ? "Resumo" : "Ato " + s.act + " de 5";
+  $("steps").innerHTML = [1, 2, 3, 4, 5].map(n => `<span class="${n <= s.act ? "on" : ""}"></span>`).join("");
+  $("title").textContent = s.title;
+  $("text").innerHTML = s.text.map(t => t.startsWith("<p") ? t : `<p>${t}</p>`).join("");
+  $("go").hidden = !s.button; $("go").textContent = s.button || "";
+  $("reset").hidden = !(s.id === "intro" || s.summary);
+  renderExtra(s);
+  draw();
+}
+
+function renderExtra(s) {
+  let title = "", html = "";
+  if (s.result === "promocao" && snap.promocao) {
+    const r = snap.promocao;
+    title = "Resultado do failover";
+    html = `
+      <section class="panel stat s3 bgred"><div class="ph">Janela perdida (RPO)</div><div class="pb"><div class="v">${r.janela}</div><div class="note">de ${r.ultimo_dado} ate ${r.queda}</div></div></section>
+      <section class="panel stat s3"><div class="ph">Pix que a Tech Pix nao conhece</div><div class="pb"><div class="v" style="color:var(--red)">${r.perdidos}</div><div class="note">o provider tem, o banco promovido nao</div></div></section>
+      <section class="panel stat s3"><div class="ph">Ja pagos (dinheiro saiu)</div><div class="pb"><div class="v" style="color:var(--red)">${r.pagos}</div><div class="note">liquidados no provider</div></div></section>
+      <section class="panel stat s3"><div class="ph">Valor sem registro</div><div class="pb"><div class="v" style="color:var(--red);font-size:40px">${fmtBRL(r.valor)}</div><div class="note">soma dos Pix pagos e perdidos</div></div></section>
+      ${r.exemplos.length ? `<section class="panel s12"><div class="ph">Exemplos <span class="sub">Pix pagos que sumiram do banco</span></div><div class="pb"><table>
+        <tr><th>Hora</th><th>Valor</th><th>De</th><th>Para</th><th>Provider</th><th>Tech Pix</th></tr>
+        ${r.exemplos.map(e => `<tr><td>${e.hora}</td><td>R$ ${e.valor}</td><td>${e.de}</td><td>${e.para}</td><td class="cell-green">PAGO</td><td class="cell-red">nao existe</td></tr>`).join("")}
+      </table></div></section>` : ""}`;
+  } else if (s.result === "reconciliacao" && snap.reconciliacao) {
+    const r = snap.reconciliacao;
+    title = "Reconciliacao";
+    html = `
+      <section class="panel stat s6"><div class="ph">Pix desconhecidos antes</div><div class="pb"><div class="v" style="color:var(--red)">${r.antes}</div></div></section>
+      <section class="panel stat s6 bggreen"><div class="ph">Depois da reconciliacao</div><div class="pb"><div class="v">${r.depois}</div></div></section>`;
+  } else if (s.summary) {
+    const r = snap.promocao || {};
+    title = "Resumo";
+    html = `<section class="panel s12"><div class="ph">O que vimos</div><div class="pb story"><ol class="sum">
+      <li>Replica assincrona fica atrasada. Quando o principal cai, <strong>o atraso vira perda</strong>.</li>
+      <li>RPO = a perda que aceitamos. Aqui: <strong>${r.janela || "-"}</strong> de dados, <strong>${r.perdidos ?? "-"}</strong> Pix.</li>
+      <li>Promover e uma troca: volta rapido (RTO baixo) aceitando perder dados (RPO &gt; 0).</li>
+      <li>Perder no banco nao e perder no mundo: com uma fonte externa (o provider) da para reconstruir. Sem ela, a perda seria definitiva.</li>
+    </ol><p class="q"><strong>Para discutir:</strong> Qual RPO a Tech Pix aceita? Quanto custa chegar a zero (replica sincrona)?
+      Que alerta teria avisado do atraso <em>antes</em> da queda? E se o principal voltar depois da promocao?</p></div></section>`;
+  }
+  $("rtitle").hidden = !title; $("rtitle").textContent = title;
+  $("extra").innerHTML = html;
+}
+
+// ---------------------------------------------------------------- dados ao vivo
+function view() {
+  const st = snap.stage, p = snap.provider ?? 0, r = snap.replica ?? 0, m = snap.primary;
+  const down = st && (m === null || m === undefined);
+  const lostPhase = ["queda", "promovida"].includes(st);
+  const gap = down ? (lostPhase ? Math.max(p - r, 0) : 0) : Math.max((m ?? 0) - r, 0);
+  return { st, p, r, m, down, gap, lostPhase, lag: snap.lag };
+}
+
+function draw() {
+  const v = view();
+  $("vp").textContent = v.p;
+  $("vr").textContent = v.r;
+  $("vm").innerHTML = v.down ? "DOWN" : (v.m ?? 0);
+  $("vm").style.color = v.down ? "#fff" : "var(--green)";
+  $("sm").classList.toggle("bgred", !!v.down);
+  $("nm").textContent = v.down ? "fora do ar" : "Pix gravados";
+
+  const lag = v.down ? null : v.lag;
+  $("vl").innerHTML = lag == null ? "-" : Math.round(lag) + '<span class="u">s</span>';
+  $("vl").style.color = lag == null ? "var(--muted)" : lag >= 10 ? "var(--red)" : lag >= 3 ? "var(--orange)" : "var(--green)";
+  $("sl").classList.toggle("bgred", lag != null && lag >= 10);
+  if (lag != null && lag >= 10) $("vl").style.color = "#fff";
+
+  $("tg").textContent = v.lostPhase ? "Pix que a replica nao tem" : v.st === "reconciliada" ? "Pix desconhecidos" : "Sem copia na replica";
+  $("ng").textContent = v.lostPhase ? "o provider tem, a replica nao" : v.st === "reconciliada" ? "provider x banco" : "Pix que so existem no principal";
+  $("vg").textContent = v.gap;
+  $("sg").classList.toggle("bgred", v.gap > 0);
+  $("vg").style.color = v.gap > 0 ? "#fff" : "var(--green)";
+
+  const rows = [
+    ["Banco principal", v.down ? ["DOWN", "b-red"] : ["UP", "b-green"]],
+    ["Replica", ["promovida", "reconciliada"].includes(v.st) ? ["PRIMARY (escrita)", "b-blue"] : ["REPLICA (leitura)", "b-gray"]],
+    ["Replicacao", !v.st || v.st === "normal" ? ["streaming", "b-green"] : ["parada", "b-red"]],
+    ["Provider", ["UP", "b-green"]],
+    ["Clientes", ["queda", "promovida"].includes(v.st) ? ["pausados", "b-orange"] : ["pagando", "b-green"]],
+  ];
+  $("health").innerHTML = rows.map(([k, [t, c]]) => `<li><span>${k}</span><span class="badge ${c}">${t}</span></li>`).join("");
+
+  $("leg1").innerHTML = [["Provider", "blue", v.p], ["Banco principal", "green", v.down ? "DOWN" : (v.m ?? 0)], ["Replica", "orange", v.r]]
+    .map(([n, c, x]) => `<span><i style="background:var(--${c})"></i>${n} <b>${x}</b></span>`).join("")
+    + (v.gap ? `<span><i style="background:rgba(242,73,92,.45);height:10px"></i>${v.lostPhase ? "Perdidos" : "Sem copia"} <b>${v.gap}</b></span>` : "");
+
+  chart($("c1"), [
+    { key: "p", color: C("blue") }, { key: "m", color: C("green") }, { key: "r", color: C("orange") },
+  ], { gap: true });
+  chart($("c2"), [{ key: "lag", color: C("purple"), fill: true }], { threshold: 10, minMax: 15 });
+}
+
+function chart(cv, series, opt) {
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  if (!W || !H) return;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const L = 44, R = 10, T = 8, B = 24, w = W - L - R, h = H - T - B;
+  const now = Date.now(), t0 = Math.min(hist.length ? hist[0].t : now, now - 60000);
+  let max = opt.minMax || 10;
+  for (const s of hist) for (const se of series) if (s[se.key] != null) max = Math.max(max, s[se.key]);
+  const step = niceStep(max / 4); max = Math.ceil(max / step) * step;
+  const X = t => L + w * (t - t0) / Math.max(now - t0, 1), Y = v => T + h - h * v / max;
+
+  g.font = "12px Inter, sans-serif"; g.textBaseline = "middle";
+  g.strokeStyle = "rgba(204,204,220,0.08)"; g.fillStyle = C("muted"); g.lineWidth = 1;
+  for (let v = 0; v <= max + 1e-9; v += step) {
+    g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(L + w, Y(v)); g.stroke();
+    g.textAlign = "right"; g.fillText(Math.round(v), L - 6, Y(v));
+  }
+  const tick = niceTime((now - t0) / 5);
+  g.textAlign = "center";
+  for (let t = Math.ceil(t0 / tick) * tick; t <= now; t += tick) {
+    g.beginPath(); g.moveTo(X(t), T); g.lineTo(X(t), T + h); g.stroke();
+    if (X(t) > L + 28 && X(t) < L + w - 28) g.fillText(new Date(t).toTimeString().slice(0, 8), X(t), H - 10);
+  }
+
+  if (opt.gap) {  // area vermelha: o que falta na replica
+    g.fillStyle = "rgba(242,73,92,0.28)";
+    for (let k = 1; k < hist.length; k++) {
+      const a = hist[k - 1], b = hist[k];
+      const top = s => s.m != null ? s.m : (["queda", "promovida"].includes(s.st) ? s.p : s.r);
+      if (top(a) <= a.r && top(b) <= b.r) continue;
+      g.beginPath(); g.moveTo(X(a.t), Y(Math.max(top(a), a.r))); g.lineTo(X(b.t), Y(Math.max(top(b), b.r)));
+      g.lineTo(X(b.t), Y(b.r)); g.lineTo(X(a.t), Y(a.r)); g.closePath(); g.fill();
+    }
+  }
+  if (opt.threshold != null) {
+    g.save(); g.setLineDash([6, 4]); g.strokeStyle = C("red"); g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(L, Y(opt.threshold)); g.lineTo(L + w, Y(opt.threshold)); g.stroke(); g.restore();
+  }
+  for (const se of series) {
+    g.strokeStyle = se.color; g.lineWidth = 2.5; g.lineJoin = "round";
+    let on = false, first = null, last = null;
+    g.beginPath();
+    for (const s of hist) {
+      const v = s[se.key];
+      if (v == null) { on = false; continue; }
+      const x = X(s.t), y = Y(v);
+      if (!on) { g.moveTo(x, y); on = true; } else g.lineTo(x, y);
+      if (!first) first = [x, y]; last = [x, y];
+    }
+    g.stroke();
+    if (se.fill && first) {
+      const grad = g.createLinearGradient(0, T, 0, T + h);
+      grad.addColorStop(0, se.color + "55"); grad.addColorStop(1, se.color + "00");
+      g.fillStyle = grad; g.beginPath(); let started = false;
+      for (const s of hist) { if (s[se.key] == null) continue; const x = X(s.t), y = Y(s[se.key]);
+        if (!started) { g.moveTo(x, T + h); g.lineTo(x, y); started = true; } else g.lineTo(x, y); }
+      g.lineTo(last[0], T + h); g.closePath(); g.fill();
+    }
+  }
+  // anotacoes (como no Grafana): linha vertical tracejada + rotulo
+  g.font = "12px Inter, sans-serif"; g.textAlign = "left"; g.textBaseline = "top";
+  for (const n of notes) {
+    if (n.t < t0) continue;
+    const x = X(n.t);
+    g.save(); g.setLineDash([3, 3]); g.strokeStyle = "rgba(87,148,242,0.9)"; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + h); g.stroke(); g.restore();
+    g.fillStyle = C("blue"); g.beginPath(); g.moveTo(x - 5, T + h); g.lineTo(x + 5, T + h); g.lineTo(x, T + h - 7); g.fill();
+    const tw = g.measureText(n.label).width + 8, lx = Math.min(x + 4, L + w - tw);
+    g.fillStyle = "rgba(17,18,23,0.85)"; g.fillRect(lx, T + 2, tw, 18);
+    g.fillStyle = C("text"); g.fillText(n.label, lx + 4, T + 5);
+  }
+}
+function niceStep(x) { const p = Math.pow(10, Math.floor(Math.log10(Math.max(x, 1e-9)))); const f = x / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
+function niceTime(ms) { for (const s of [5e3, 1e4, 15e3, 3e4, 6e4, 12e4, 3e5]) if (s >= ms) return s; return 6e5; }
+
+async function poll() {
+  try {
+    const j = await (await fetch("/api/demo/board")).json();
+    if (!j.error) {
+      snap = j; $("live").classList.remove("off");
+      if (j.stage) {
+        const m = j.primary == null ? null : j.primary;
+        hist.push({ t: Date.now(), st: j.stage, p: j.provider, m, r: j.replica, lag: m == null ? null : j.lag });
+        if (hist.length > 400) hist.shift();
+      }
+      draw();
+    }
+  } catch (e) { $("live").classList.add("off"); }
+  setTimeout(poll, 1500);
+}
+
+async function go() {
+  const s = STEPS[i];
+  if (busy || !s.button) return;
+  $("err").textContent = "";
+  if (s.action) {
+    busy = true; $("go").disabled = true; $("go").textContent = "Executando...";
+    try {
+      const res = await fetch("/api/demo/" + s.action, { method: "POST" });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "falhou");
+      snap = Object.assign(snap, j);
+      if (s.action === "begin") { hist = []; notes = []; }
+      if (NOTES[s.action]) notes.push({ t: Date.now(), label: NOTES[s.action] });
+    } catch (e) {
+      $("err").textContent = e.message; busy = false; $("go").disabled = false; $("go").textContent = s.button; return;
+    }
+    busy = false; $("go").disabled = false;
+  }
+  i = Math.min(i + 1, STEPS.length - 1);
+  render();
+}
+
+async function reset() {
+  if (busy) return;
+  busy = true; $("reset").disabled = true; $("go").disabled = true; $("err").textContent = "";
+  $("rtitle").hidden = false; $("rtitle").textContent = "Reiniciando o ambiente (~1 min)";
+  $("extra").innerHTML = "<section class='panel s12'><div class='ph'>Logs</div><div class='pb'><pre id='log'></pre></div></section>";
+  try {
+    const { id } = await (await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cmd: "reset" }) })).json();
+    let from = 0;
+    while (true) {
+      const j = await (await fetch(`/api/job/${id}?from=${from}`)).json();
+      from = j.next; const log = $("log"); if (log) { log.textContent += j.text; log.scrollTop = log.scrollHeight; }
+      if (j.rc !== null) break;
+      await new Promise(ok => setTimeout(ok, 1000));
+    }
+  } catch (e) { $("err").textContent = "reset falhou: " + e.message; }
+  busy = false; $("reset").disabled = false; $("go").disabled = false;
+  snap = {}; hist = []; notes = []; i = 0; render();
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === " " || e.key === "ArrowRight" || e.key === "PageDown") { e.preventDefault(); go(); }
+});
+$("go").onclick = go; $("reset").onclick = reset;
+window.addEventListener("resize", draw);
+
+(async () => {
+  // reabriu a pagina no meio da demo: volta para o ato certo
+  try { snap = await (await fetch("/api/demo/board")).json(); } catch (e) {}
+  const step = STAGE_TO_STEP[snap.stage];
+  if (step) i = STEPS.findIndex(s => s.id === step);
+  render(); poll();
+})();
+</script>
+</body>
+</html>
